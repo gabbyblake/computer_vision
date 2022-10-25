@@ -21,6 +21,10 @@ class ObjectTracker(Node):
         self.cv_image = None                        # the latest image from the camera
         self.bridge = CvBridge()                    # used to convert ROS messages to OpenCV
 
+        self.cap = cv2.VideoCapture(0)
+        if not self.cap.isOpened():
+            raise IOError("Cannot open webcam")
+
         self.create_subscription(Image, image_topic, self.process_image, 10)
         self.pub = self.create_publisher(Twist, 'cmd_vel', 10)
         self.red_lower_bound = 0
@@ -31,6 +35,7 @@ class ObjectTracker(Node):
         self.blue_upper_bound = 255
         thread = Thread(target=self.loop_wrapper)
         thread.start()
+        
 
     def process_image(self, msg):
         """ Process image messages from ROS and stash them in an attribute
@@ -93,6 +98,9 @@ class ObjectTracker(Node):
 
     def run_loop(self):
         # NOTE: only do cv2.imshow and cv2.waitKey in this function 
+        ret, frame = self.cap.read()
+        self.cv_image = cv2.resize(frame, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
+        
         if not self.cv_image is None:
             self.binary_image = cv2.inRange(self.cv_image, (self.blue_lower_bound,self.green_lower_bound,self.red_lower_bound), (self.blue_upper_bound,self.green_upper_bound,self.red_upper_bound))
             print(self.cv_image.shape)
@@ -103,13 +111,13 @@ class ObjectTracker(Node):
             cv2.waitKey(5)
 
 if __name__ == '__main__':
-    node = BallTracker("/camera/image_raw")
+    node = ObjectTracker("/camera/image_raw")
     node.run()
 
 
 def main(args=None):
     rclpy.init()
-    n = BallTracker("camera/image_raw")
+    n = ObjectTracker("camera/image_raw")
     rclpy.spin(n)
     rclpy.shutdown()
 
