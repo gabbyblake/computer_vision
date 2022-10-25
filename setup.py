@@ -20,6 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'object_tracker = computer_vision.object_tracker:main',
         ],
     },
 )
