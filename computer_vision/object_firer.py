@@ -34,7 +34,8 @@ class ObjectFirer(Node):
   
 
     def run_loop(self):
-        #do something
+        # do something
+        print("fire turret")
     
     
    
