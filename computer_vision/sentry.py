@@ -1,4 +1,6 @@
 from computer_vision.object_identifier import ObjectIdentifier
+from computer_vision.object_tracker import ObjectTracker
+from computer_vision.object_firer import ObjectFirer
 import rclpy
 from threading import Thread
 from rclpy.node import Node
