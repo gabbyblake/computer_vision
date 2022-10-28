@@ -7,7 +7,8 @@ from copy import deepcopy
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
-from geometry_msgs.msg import Twist, Vector3
+from geometry_msgs.msg import Twist, Point
+from std_msgs.msg import String, Float64
 
 class ObjectIdentifier(Node):
 
@@ -22,7 +23,11 @@ class ObjectIdentifier(Node):
             raise IOError("Cannot open webcam")
 
         self.create_subscription(Image, image_topic, self.process_image, 10)
-        self.pub = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.centroid_pub = self.create_publisher(Point, 'centroid', 10)
+        self.pan_speed_pub = self.create_publisher(Float64, 'pan_speed', 10)
+        self.tilt_speed_pub = self.create_publisher(Float64, 'tilt_speed', 10)
+
         # self.red_lower_bound = 0
         # self.green_lower_bound = 0
         # self.blue_lower_bound = 0
@@ -102,9 +107,10 @@ class ObjectIdentifier(Node):
         if not self.cv_image is None:
             self.binary_image = cv2.inRange(self.cv_image, (0,0,115), (137,61,255))
             # self.binary_image = cv2.inRange(self.cv_image, (self.blue_lower_bound,self.green_lower_bound,self.red_lower_bound), (self.blue_upper_bound,self.green_upper_bound,self.red_upper_bound))
-            # print(self.cv_image.shape)
+            print(self.cv_image.shape)
 
-            self.find_centroids()
+            msg = self.find_centroids()
+            self.centroid_pub.publish(msg)
             
             cv2.imshow('video_window', self.cv_image)
             cv2.imshow('binary_window', self.binary_image)
@@ -127,6 +133,9 @@ class ObjectIdentifier(Node):
             # put text and highlight the center
             cv2.circle(self.cv_image, (cX, cY), 5, (0, 255, 255), -1)
             cv2.putText(self.cv_image, "centroid", (cX - 25, cY - 25),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+            
+            msg = Point(cX, cY, 0.0)
+            return msg
 
 if __name__ == '__main__':
     node = ObjectIdentifier("/camera/image_raw")
