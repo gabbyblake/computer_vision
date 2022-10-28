@@ -9,7 +9,7 @@ from cv_bridge import CvBridge
 import cv2
 import numpy as np
 from geometry_msgs.msg import Twist, Point
-from std_msgs.msg import Str
+from std_msgs.msg import Float64
 
 class Sentry(Node):
 
