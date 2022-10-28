@@ -11,7 +11,7 @@ from cv_bridge import CvBridge
 import cv2
 import numpy as np
 from geometry_msgs.msg import Twist, Point
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64MultiArray
 
 class Sentry(Node):
 
@@ -20,20 +20,17 @@ class Sentry(Node):
         super().__init__('sentry')
         
         self.identify_node = ObjectIdentifier()
-        self.track_node = ObjectTracker()
+        self.track_node = ObjectTracker(self.identify_node.cv_image.shape)
         self.fire_node = ObjectFirer()
         
         # create publishers
         self.vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
         self.centroid_pub = self.create_publisher(Point, 'centroid', 10)
-        self.pan_speed_pub = self.create_publisher(Float64, 'pan_speed', 10)
-        self.tilt_speed_pub = self.create_publisher(Float64, 'tilt_speed', 10)
+        self.pan_tilt_pub = self.create_publisher(Float64MultiArray, 'pan_tilt', 10)
 
         thread = Thread(target=self.loop_wrapper)
         thread.start()
         
-
-
     def loop_wrapper(self):
         """ This function takes care of calling the run_loop function repeatedly.
             We are using a separate thread to run the loop_wrapper to work around
@@ -46,12 +43,8 @@ class Sentry(Node):
             self.run_loop()
             time.sleep(0.1)
 
-
     def run_loop(self):
         self.identify_node.run_loop()
-        
-    
-    
 
 if __name__ == '__main__':
     node = Sentry("/camera/image_raw")
