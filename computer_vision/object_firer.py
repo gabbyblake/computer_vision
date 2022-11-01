@@ -8,28 +8,33 @@ from cv_bridge import CvBridge
 import cv2
 import numpy as np
 from geometry_msgs.msg import Twist, Point
-from std_msgs.msg import String, Float64
+from std_msgs.msg import String, Float64, Float64MultiArray
+import serial
 
 
 class ObjectFirer(Node):
 
     def __init__(self, image_topic):
-        """ Initialize the object identifier """
-        super().__init__('object_identifier')
-        self.cv_image = None                        # the latest image from the camera
-        self.bridge = CvBridge()                    # used to convert ROS messages to OpenCV
+        """ Initialize the object firer """
+        super().__init__('object_firer')
 
-        self.cap = cv2.VideoCapture(0)
-        if not self.cap.isOpened():
-            raise IOError("Cannot open webcam")
+        
+        self.create_subscription(Float64MultiArray, pan_speed, tilt_speed, 10)
 
-        self.create_subscription(Image, image_topic, self.process_image, 10)
+        self.vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.centroid_pub = self.create_publisher(Point, 'centroid', 10)
+        self.pan_tilt_pub = self.create_publisher(Float64MultiArray, 'pan_tilt', 10)
 
+        ser = serial.Serial(
+            port='/dev/ttyUSB1',
+            baudrate=9600,
+            parity=serial.PARITY_ODD,
+            stopbits=serial.STOPBITS_TWO,
+            bytesize=serial.SEVENBITS
+        )
         thread = Thread(target=self.loop_wrapper)
         thread.start()
         
-
-    
 
   
 
@@ -38,7 +43,7 @@ class ObjectFirer(Node):
         print("fire turret")
     
     
-   
+
 
 if __name__ == '__main__':
     node = ObjectFirer("/camera/image_raw")

@@ -21,7 +21,6 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'object_identifier = computer_vision.object_identifier:main',
             'object_tracker = computer_vision.object_tracker:main',
             'object_firer = computer_vision.object_firer:main',
             'sentry = computer_vision.sentry:main'

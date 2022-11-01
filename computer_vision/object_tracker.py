@@ -1,12 +1,14 @@
-from turtle import tilt
 import rclpy
+from turtle import tilt
 from threading import Thread
 from rclpy.node import Node
 import time
 import numpy as np
+from copy import deepcopy
+from cv_bridge import CvBridge
 import cv2
 from sensor_msgs.msg import Image
-from std_msgs.msg import String, Float64, Float64MultiArray, Image
+from std_msgs.msg import String, Float64, Float64MultiArray
 from geometry_msgs.msg import Point, Twist
 from simple_pid import PID
 
@@ -26,7 +28,6 @@ class ObjectTracker(Node):
         # delete these publish statements once sentry code works
         self.vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
         self.motor_pub = self.create_publisher(Float64MultiArray, 'pan_tilt', 10)
-        self.trigger_pub = self.create_publisher(String, 'trigger', 10)
 
 
         # self.red_lower_bound = 0
@@ -37,15 +38,25 @@ class ObjectTracker(Node):
         # self.blue_upper_bound = 255
 
         self.create_subscription(Image, image_topic, self.process_image, 10)
+
+        
+        self.aim_box_radius = 15
         
         # initial guess of frame dimensions
         self.frame_width = 320 # px
         self.frame_height = 240 # px
 
-        #PID VALUES TO BE TUNED
-        self.pan_pid  = PID(Kp = 0.1, Ki = 0, Kd = 0.05, setpoint = (self.frame_width  / 2))    # PID controller for steering
-        self.tilt_pid = PID(Kp = 0.5, Ki = 0, Kd = 0,    setpoint = (self.frame_height / 2))  # PID controller for linear velocity
+        self.centroid = [160, 120]
+        self.aim = [160, 120]
 
+        #PID VALUES TO BE TUNED
+        # for real life
+        # self.pan_pid  = PID(Kp = 0.1, Ki = 0, Kd = 0.05, setpoint = (self.frame_width / 2))    # PID controller for steering
+        # self.tilt_pid = PID(Kp = 0.5, Ki = 0, Kd = 0,    setpoint = (self.frame_height / 2))  # PID controller for linear velocity
+
+        # PIDs for simulator were here
+
+        self.start = time.time()
 
         thread = Thread(target=self.loop_wrapper)
         thread.start()
@@ -68,31 +79,63 @@ class ObjectTracker(Node):
         else:
             cX, cY = 0, 0
 
-        
+        self.centroid = [cX, cY]
+
+
         # put text and highlight the center
         cv2.circle(self.cv_image, (cX, cY), 5, (0, 255, 255), -1)
         cv2.putText(self.cv_image, "centroid", (cX - 25, cY - 25),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
         
-        msg = Point(cX, cY, 0.0)
-        return msg
+        
 
-    def process_centroid(self, msg):
+
+    def process_centroid(self):
         """ Input: Centroid Coordinates
             Output: Motor Commands """
             
         pan_cmd = Float64()
         tilt_cmd = Float64()
-        centroid_x = msg[0]
-        centroid_y = msg[1]
+        centroid_x = self.centroid[0]
+        centroid_y = self.centroid[1]
 
-        pan_cmd = self.pan_pid(centroid_x)
-        tilt_cmd = self.tilt_pid(centroid_y)
+        # for real life
+        # pan_cmd = self.pan_pid(centroid_x)
+        # tilt_cmd = self.tilt_pid(centroid_y)
+
+        # PID simulation
+        self.pan_pid  = PID(Kp = 0.5, Ki = 0, Kd = 0, setpoint = self.centroid[0])    # PID controller for steering
+        self.tilt_pid = PID(Kp = 0.5, Ki = 0, Kd = 0, setpoint = self.centroid[1])  # PID controller for linear velocity
+
+        #for simulation
+        pan_cmd = self.pan_pid(self.aim[0])
+        tilt_cmd = self.tilt_pid(self.aim[1])
         msg = Float64MultiArray()
         msg.data = [pan_cmd, tilt_cmd]
         self.motor_pub.publish(msg)
 
-        # put text and highlight the center
-        cv2.circle(self.cv_image, ((self.frame_width  / 2), (self.frame_height  / 2)), 5, (0, 255, 255), -1)
+        # update aim with pan and tilt velocities
+        # d = v* t
+        diff = time.time() - self.start
+        self.aim[0] = int(self.aim[0] + (pan_cmd * diff))
+        self.aim[1] = int(self.aim[1] + (tilt_cmd * diff))
+        self.start = time.time()
+        
+        # start timer for locking in
+        if () and ():
+            # timer block
+
+
+        # put text and highlight the aim
+        cv2.circle(self.cv_image, (self.aim[0], self.aim[1]), 5, (255, 0, 0), -1)
+        cv2.putText(self.cv_image, "aim", (self.aim[0] - 25, self.aim[1] - 25),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+        # Draw a rectangle with blue line borders of thickness of 2 px
+        start_point = (self.aim[0] - self.aim_box_radius, self.aim[1] - self.aim_box_radius)
+        end_point = (self.aim[0] + self.aim_box_radius, self.aim[1] + self.aim_box_radius)
+        cv2.rectangle(self.cv_image, start_point, end_point, (255, 0, 0), 2)
+
+   
+
+
 
     def run_loop(self):
         # NOTE: only do cv2.imshow and cv2.waitKey in this function 
@@ -108,6 +151,7 @@ class ObjectTracker(Node):
             print(self.cv_image.shape)
 
             msg = self.find_centroids()
+            self.process_centroid()
             # self.centroid_pub.publish(msg)
             
             # shows windows
