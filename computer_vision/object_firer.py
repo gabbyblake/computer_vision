@@ -53,7 +53,7 @@ class ObjectFirer(Node):
         self.ser.write(msg.encode('utf-8'))
 
         msg = "FIRE" + "\n"
-        self.create_timerser.write(msg.encode('utf-8'))
+        self.ser.write(msg.encode('utf-8'))
 
         time.sleep(2)
 
