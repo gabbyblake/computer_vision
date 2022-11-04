@@ -28,9 +28,7 @@ class ObjectFirer(Node):
             timeout=1
         )
 
-        
-        self.create_subscription(Float64MultiArray, "pan_tilt", self.send_msg, 10)
-        self.create_subscription()
+        self.pt_msg = [1.0, 0.5]
 
         thread = Thread(target=self.loop_wrapper)
         thread.start()
@@ -60,12 +58,14 @@ class ObjectFirer(Node):
 
       
         
-
-  
+    def loop_wrapper(self):
+      while True:
+                self.run_loop()
+                time.sleep(0.1)
 
     def run_loop(self):
-        # do something
-        print("fire turret")
+        self.send_msg(self.pt_msg)
+        
     
     
 

@@ -64,8 +64,8 @@ class ObjectTracker(Node):
        
 
         # PIDs for simulator were here
-
-        self.start_timer= time.time()
+        self.start = time.time()
+        self.timer_start = -1.0
         self.clock = 0.0
 
         thread = Thread(target=self.loop_wrapper)
@@ -141,8 +141,8 @@ class ObjectTracker(Node):
 
 
         # PID simulation
-        self.pan_pid  = PID(Kp = 0.5, Ki = 0, Kd = 0, setpoint = self.centroid[0])    # PID controller for steering
-        self.tilt_pid = PID(Kp = 0.5, Ki = 0, Kd = 0, setpoint = self.centroid[1])  # PID controller for linear velocity
+        self.pan_pid  = PID(Kp = 0.8, Ki = 0, Kd = -0.25, setpoint = self.centroid[0])    # PID controller for steering
+        self.tilt_pid = PID(Kp = 0.8, Ki = 0, Kd = -0.25, setpoint = self.centroid[1])  # PID controller for linear velocity
 
         #for simulation
         pan_cmd = self.pan_pid(self.aim[0])
@@ -161,18 +161,22 @@ class ObjectTracker(Node):
         if (self.aim[0] - self.aim_box_radius <= self.centroid[0] <= self.aim[0] + self.aim_box_radius) and \
             (self.aim[1] - self.aim_box_radius <= self.centroid[1] <= self.aim[1] + self.aim_box_radius):
             print("within radius")
-            if self.start_timer == 0.0:
-                self.start_timer = time.time()
+            if self.timer_start == -1.0:
+                self.timer_start = time.time()
             current = time.time()
-            if 0.95 <= current - self.start_timer <= 1.05:
-                self.clock += 1.0
-                print("clock updated")
-                if self.clock <= 3.0:
-                    cv2.putText(self.cv_image, "Timer: " + str (self.clock), (self.frame_width - 50, self.frame_height + 50),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
-                    print("timer up")
-                else:
-                    cv2.putText(self.cv_image, "FIRE" + str (self.clock), (self.frame_width / 2, self.frame_height / 2),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 3)
-                    print("Fired!")
+            timer_diff = current - self.timer_start + 1.0
+
+            if timer_diff <= 4.0:
+                print(timer_diff)
+                text = "Timer: " + str(int(timer_diff))
+                cv2.putText(self.cv_image, text, (int(self.frame_width - 75), int(25)),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
+                print("timer up")
+            else:
+                cv2.putText(self.cv_image, "FIRE!", (int(self.frame_width / 2), int(self.frame_height / 2)),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 3)
+                print("Fired!")
+        else:
+            print("outside_radius")
+            self.timer_start = time.time()
             # timer block
 
         self.start = time.time()
@@ -198,7 +202,7 @@ class ObjectTracker(Node):
         if not self.cv_image is None:
             self.binary_image = cv2.inRange(self.cv_image, (0,0,115), (137,61,255))
             # self.binary_image = cv2.inRange(self.cv_image, (self.blue_lower_bound,self.green_lower_bound,self.red_lower_bound), (self.blue_upper_bound,self.green_upper_bound,self.red_upper_bound))
-            print(self.cv_image.shape)
+            # print(self.cv_image.shape)
 
             msg = self.find_centroids()
             self.process_centroid()
