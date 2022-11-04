@@ -3,6 +3,7 @@ from turtle import tilt
 from threading import Thread
 from rclpy.node import Node
 import time
+import serial
 import numpy as np
 from copy import deepcopy
 from cv_bridge import CvBridge
@@ -29,6 +30,16 @@ class ObjectTracker(Node):
         self.vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
         self.motor_pub = self.create_publisher(Float64MultiArray, 'pan_tilt', 10)
 
+        # self.ser = serial.Serial(
+        #     port='/dev/ttyACM0', # Change this according to connection methods, e.g. /dev/ttyUSB0
+        #     baudrate = 115200,
+        #     parity=serial.PARITY_NONE,
+        #     stopbits=serial.STOPBITS_ONE,
+        #     bytesize=serial.EIGHTBITS,
+        #     timeout=1
+        # )
+
+
 
         # self.red_lower_bound = 0
         # self.green_lower_bound = 0
@@ -40,7 +51,8 @@ class ObjectTracker(Node):
         self.create_subscription(Image, image_topic, self.process_image, 10)
 
         
-        self.aim_box_radius = 15
+        self.aim_box_radius = 20
+        self.lock_timer = 0.0
         
         # initial guess of frame dimensions
         self.frame_width = 320 # px
@@ -49,17 +61,36 @@ class ObjectTracker(Node):
         self.centroid = [160, 120]
         self.aim = [160, 120]
 
-        #PID VALUES TO BE TUNED
-        # for real life
-        # self.pan_pid  = PID(Kp = 0.1, Ki = 0, Kd = 0.05, setpoint = (self.frame_width / 2))    # PID controller for steering
-        # self.tilt_pid = PID(Kp = 0.5, Ki = 0, Kd = 0,    setpoint = (self.frame_height / 2))  # PID controller for linear velocity
+       
 
         # PIDs for simulator were here
 
-        self.start = time.time()
+        self.start_timer= time.time()
+        self.clock = 0.0
 
         thread = Thread(target=self.loop_wrapper)
         thread.start()
+
+    def send_pan_and_tilt_msg(self, msg):
+        pan_speed = msg[0]
+        tilt_speed = msg[1]
+
+        pan_msg = "SET PAN " + str(pan_speed) + "\n"
+        self.ser.write(pan_msg.encode('utf-8'))
+
+        tilt_msg = "SET TILT " + str(tilt_speed) + "\n"
+        self.ser.write(tilt_msg.encode('utf-8'))
+
+        msg = spin + "\n"
+        self.ser.write(msg.encode('utf-8'))
+
+        msg = safety + "\n"
+        self.ser.write(msg.encode('utf-8'))
+
+        msg = fire + "\n"
+        self.ser.write(msg.encode('utf-8'))
+
+        time.sleep(2)
 
     def process_image(self, msg):
         """ Process image messages from ROS and stash them in an attribute
@@ -98,9 +129,16 @@ class ObjectTracker(Node):
         centroid_x = self.centroid[0]
         centroid_y = self.centroid[1]
 
-        # for real life
+         #PID VALUES TO BE TUNED
+        # PID for real life
+        # self.pan_pid  = PID(Kp = 0.5, Ki = 0, Kd = 0, setpoint = (self.frame_width / 2))    # PID controller for steering
+        # self.tilt_pid = PID(Kp = 0.5, Ki = 0, Kd = 0, setpoint = (self.frame_height / 2))  # PID controller for linear velocity
+        
+        # velocities for real life
         # pan_cmd = self.pan_pid(centroid_x)
         # tilt_cmd = self.tilt_pid(centroid_y)
+
+
 
         # PID simulation
         self.pan_pid  = PID(Kp = 0.5, Ki = 0, Kd = 0, setpoint = self.centroid[0])    # PID controller for steering
@@ -109,22 +147,35 @@ class ObjectTracker(Node):
         #for simulation
         pan_cmd = self.pan_pid(self.aim[0])
         tilt_cmd = self.tilt_pid(self.aim[1])
-        msg = Float64MultiArray()
-        msg.data = [pan_cmd, tilt_cmd]
-        self.motor_pub.publish(msg)
+        msg = [pan_cmd, tilt_cmd]
+        # self.send_pan_and_tilt_msg(msg)
 
         # update aim with pan and tilt velocities
         # d = v* t
         diff = time.time() - self.start
         self.aim[0] = int(self.aim[0] + (pan_cmd * diff))
         self.aim[1] = int(self.aim[1] + (tilt_cmd * diff))
-        self.start = time.time()
+        
         
         # start timer for locking in
-        if () and ():
+        if (self.aim[0] - self.aim_box_radius <= self.centroid[0] <= self.aim[0] + self.aim_box_radius) and \
+            (self.aim[1] - self.aim_box_radius <= self.centroid[1] <= self.aim[1] + self.aim_box_radius):
+            print("within radius")
+            if self.start_timer == 0.0:
+                self.start_timer = time.time()
+            current = time.time()
+            if 0.95 <= current - self.start_timer <= 1.05:
+                self.clock += 1.0
+                print("clock updated")
+                if self.clock <= 3.0:
+                    cv2.putText(self.cv_image, "Timer: " + str (self.clock), (self.frame_width - 50, self.frame_height + 50),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
+                    print("timer up")
+                else:
+                    cv2.putText(self.cv_image, "FIRE" + str (self.clock), (self.frame_width / 2, self.frame_height / 2),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 3)
+                    print("Fired!")
             # timer block
 
-
+        self.start = time.time()
         # put text and highlight the aim
         cv2.circle(self.cv_image, (self.aim[0], self.aim[1]), 5, (255, 0, 0), -1)
         cv2.putText(self.cv_image, "aim", (self.aim[0] - 25, self.aim[1] - 25),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
@@ -135,8 +186,7 @@ class ObjectTracker(Node):
 
    
 
-
-
+    
     def run_loop(self):
         # NOTE: only do cv2.imshow and cv2.waitKey in this function 
         
