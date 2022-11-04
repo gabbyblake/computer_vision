@@ -15,7 +15,7 @@ class ObjectTracker():
 
         # OpenCV stuff
         self.cv_image = None                        # the latest image from the camera
-        self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(4)
         if not self.cap.isOpened():
             raise IOError("Cannot open webcam")
 
@@ -50,8 +50,8 @@ class ObjectTracker():
        
 
         # PIDs for simulator
-        self.pan_pid  = PID(Kp = 0.8, Ki = 0, Kd = -0.25, setpoint = (self.frame_width / 2),  output_limits=[-1.0, 1.0])    # PID controller for steering
-        self.tilt_pid = PID(Kp = 0.8, Ki = 0, Kd = -0.25, setpoint = (self.frame_height / 2), output_limits=[-1.0, 1.0])  # PID controller for linear velocity
+        self.pan_pid  = PID(Kp = -0.001, Ki = 0, Kd = 0.0001, setpoint = (self.frame_width / 2),  output_limits=[-1.0, 1.0])    # PID controller for steering
+        self.tilt_pid = PID(Kp = 0.001, Ki = 0, Kd = 0.0001, setpoint = (self.frame_height / 2), output_limits=[-1.0, 1.0])  # PID controller for linear velocity
         
 
         # Countdown to fire timer
@@ -75,6 +75,8 @@ class ObjectTracker():
     def send_motor_cmd(self, motor, speed):
         cmd = f"SET {motor} {speed}"
         self.send_ser_line(cmd)
+        # DEBUG
+        print(speed)
 
     def send_spin_cmd(self, val):
         msg = "SPIN " + ("UP" if val else "DOWN")
@@ -86,7 +88,8 @@ class ObjectTracker():
 
     def send_fire_cmd(self):
         msg = "FIRE"
-        self.send_ser_line(msg)
+        # DEBUG:
+        # self.send_ser_line(msg)
         self.fired = True
         print("sent message to fire")
 
@@ -101,14 +104,14 @@ class ObjectTracker():
             minSize=(30, 30),
             flags=cv2.CASCADE_SCALE_IMAGE
         )
-        
+        self.centroid = [int(self.frame_width/2), int(self.frame_height/2)]
         # Draw a rectangle around the faces
         for (x, y, w, h) in faces:
             if w*h > 10000:
                 cv2.rectangle(self.cv_image, (x, y), (x+w, y+h), (0, 125, 0), 2)
                 self.centroid = [int(x+(w/2)), int(y+(h/2))]
             else:
-                self.centroid = [0, 0]
+                self.centroid = [int(self.frame_width/2), int(self.frame_height/2)]
         clear = np.any(faces)
 
         # Draw rect around first detected face
@@ -118,7 +121,7 @@ class ObjectTracker():
                 cv2.rectangle(self.cv_image, (x, y), (x+w, y+h), (0, 255, 0), 2)
                 self.centroid = [int(x+(w/2)), int(y+(h/2))]
             else:
-                self.centroid = [0, 0]
+                self.centroid = [int(self.frame_width/2), int(self.frame_height/2)]
 
         # Print out centroid
         [cX, cY] = self.centroid
@@ -239,9 +242,9 @@ class ObjectTracker():
             
             # shows windows
             cv2.imshow('video_window', self.cv_image)
-            cv2.imshow('binary_window', self.binary_image)
-            if hasattr(self, 'image_info_window'):
-                cv2.imshow('image_info', self.image_info_window)
+            # cv2.imshow('binary_window', self.binary_image)
+            # if hasattr(self, 'image_info_window'):
+                # cv2.imshow('image_info', self.image_info_window)
             cv2.waitKey(5)
     
     
@@ -251,8 +254,8 @@ class ObjectTracker():
             We are using a separate thread to run the loop_wrapper to work around
             issues with single threaded executors in ROS2 """
         cv2.namedWindow("video_window")
-        cv2.namedWindow("binary_window")
-        cv2.namedWindow("image_info")
+        # cv2.namedWindow("binary_window")
+        # cv2.namedWindow("image_info")
         # self.red_lower_bound = 0
         # cv2.createTrackbar('red lower bound', 'binary_window', self.red_lower_bound, 255, self.set_red_lower_bound)
         # cv2.createTrackbar('red upper bound', 'binary_window', self.red_upper_bound, 255, self.set_red_upper_bound)

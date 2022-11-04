@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 cv2.namedWindow("preview")
-vc = cv2.VideoCapture(0)
+vc = cv2.VideoCapture(4)
 
 if vc.isOpened(): # try to get the first frame
     rval, frame = vc.read()
