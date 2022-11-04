@@ -15,7 +15,7 @@ class ObjectTracker():
 
         # OpenCV stuff
         self.cv_image = None                        # the latest image from the camera
-        self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(1)
         if not self.cap.isOpened():
             raise IOError("Cannot open webcam")
 
@@ -25,7 +25,7 @@ class ObjectTracker():
 
         # serial comm. with the Sentry driver Pico board
         self.ser = serial.Serial(
-            port='/dev/tty.usbmodem142303', # Change this according to connection methods, e.g. /dev/ttyUSB0
+            port='/dev/ttyACM1', # Change this according to connection methods, e.g. /dev/ttyUSB0
             baudrate = 115200,
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
@@ -44,7 +44,7 @@ class ObjectTracker():
         self.aim_box_radius = 20
         self.lock_timer = 0.0
 
-        self.centroid = [self.frame_width//2, self.frame_height//2]
+        self.centroid = [int(self.frame_width//2), int(self.frame_height//2)]
         self.aim = self.centroid
 
        
@@ -122,7 +122,7 @@ class ObjectTracker():
 
         # Print out centroid
         [cX, cY] = self.centroid
-        if cX != 0:
+        if cX > 25:
             print([cX, cY])
             # put text and highlight the center
             cv2.circle(self.cv_image, (cX, cY), 5, (0, 255, 255), -1)
@@ -302,13 +302,9 @@ class ObjectTracker():
 
     
 
-if __name__ == '__main__':
-    node = ObjectTracker() # not sure if the input path should stay
-    node.run()
 
 def main(args=None):
-    tracker = ObjectTracker("camera/image_raw")
-
+    tracker = ObjectTracker()
 
 
 if __name__ == '__main__':
