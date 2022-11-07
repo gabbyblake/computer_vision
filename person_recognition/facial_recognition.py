@@ -8,6 +8,8 @@ faceCascade = cv2.CascadeClassifier(cascPath)
 video_capture = cv2.VideoCapture(0)
 
 while True:
+
+def find_faces(self):
     # Capture frame-by-frame
     ret, frames = video_capture.read()
 
