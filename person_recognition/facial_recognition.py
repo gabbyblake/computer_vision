@@ -2,6 +2,7 @@ import cv2
 import os
 import sys
 
+
 cascPath=os.path.dirname(cv2.__file__)+"/data/haarcascade_frontalface_default.xml"
 faceCascade = cv2.CascadeClassifier(cascPath)
 #face_cascade = cv2.CascadeClassifier('face_detector.xml')
@@ -9,7 +10,6 @@ video_capture = cv2.VideoCapture(0)
 
 while True:
 
-def find_faces(self):
     # Capture frame-by-frame
     ret, frames = video_capture.read()
 
